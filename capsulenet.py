@@ -240,9 +240,9 @@ if __name__ == "__main__":
 						help="The path of the saved weights. Should be specified when testing")
 	parser.add_argument('-i', '--im_size', default=224,
 						help="Image size")
-	parser.add_argument('-td', '--train_dir', default='../CNN/fine_tuning/dataset/train/',
+	parser.add_argument('-td', '--train_dir', required=True,
 						help="Train dir")
-	parser.add_argument('-vd', '--validation_dir', default='../CNN/fine_tuning/dataset/validation/',
+	parser.add_argument('-vd', '--validation_dir', required=True,
 						help="Validation dir")	
 	args = parser.parse_args()
 	print(args)
