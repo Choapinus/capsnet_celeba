@@ -24,6 +24,15 @@ import matplotlib.pyplot as plt
 from utils import combine_images
 from PIL import Image
 from capsulelayers import CapsuleLayer, PrimaryCap, Length, Mask
+import os
+import random
+import argparse
+from keras.preprocessing.image import ImageDataGenerator
+from keras import callbacks
+from sklearn.model_selection import train_test_split
+from keras.preprocessing.image import img_to_array
+from imutils import paths
+import cv2
 
 K.set_image_data_format('channels_last')
 
@@ -99,7 +108,7 @@ def train(model, data, args):
 	:return: The trained model
 	"""
 	# unpacking the data
-	(train_generator, validation_generator) = data
+	(x_train, y_train), (x_test, y_test) = data
 
 	# callbacks
 	log = callbacks.CSVLogger(args.save_dir + '/log.csv')
@@ -115,17 +124,21 @@ def train(model, data, args):
 				  loss_weights=[1., args.lam_recon],
 				  metrics={'capsnet': 'accuracy'})
 
+	 # Begin: Training with data augmentation ---------------------------------------------------------------------#
+	def train_generator(x, y, batch_size, shift_fraction=0.):
+		train_datagen = ImageDataGenerator(width_shift_range=shift_fraction,
+										   height_shift_range=shift_fraction)  # shift up to 2 pixel for MNIST
+		generator = train_datagen.flow(x, y, batch_size=batch_size)
+		while 1:
+			x_batch, y_batch = generator.next()
+			yield ([x_batch, y_batch], [y_batch, x_batch])
+
 	# Training with data augmentation. If shift_fraction=0., also no augmentation.
-	model.fit_generator(
-		generator=train_generator,
-		steps_per_epoch=2*train_generator.samples/train_generator.batch_size,
-		epochs=args.epochs,
-		validation_data=validation_generator,
-		validation_steps=validation_generator.samples/validation_generator.batch_size,
-		callbacks=[log, tb, checkpoint, lr_decay],
-		verbose=1
-	)
-	# End: Training with data augmentation -----------------------------------------------------------------------#
+	model.fit_generator(generator=train_generator(x_train, y_train, args.batch_size, args.shift_fraction),
+						steps_per_epoch=int(y_train.shape[0] / args.batch_size),
+						epochs=args.epochs,
+						validation_data=[[x_test, y_test], [y_test, x_test]],
+						callbacks=[log, tb, checkpoint, lr_decay])
 
 	model.save_weights(args.save_dir + '/trained_model.h5')
 	print('Trained model saved to \'%s/trained_model.h5\'' % args.save_dir)
@@ -178,43 +191,58 @@ def manipulate_latent(model, data, args):
 
 
 def load_data(args):
-	train_datagen = ImageDataGenerator(
-	rescale=1./255,
-	rotation_range=20,
-	width_shift_range=0.2,
-	height_shift_range=0.2,
-	horizontal_flip=True,
-	fill_mode='nearest'
-	)
+	data = []
+	labels = []
+	
+	print("[INFO] Loading images")
 
-	validation_datagen = ImageDataGenerator(rescale=1./255)
+	male_file, female_file = open('./male.txt', 'w'), open('./female.txt', 'w')
+	male_im, female_im = [], []
+	all_images = sorted(list(paths.list_images(args.dataset)))
+	for image in all_images:
+		if image.split(os.path.sep)[-2] == 'male' and len(male_im) < args.n_images:
+			male_im.append(image)
+			male_file.write(image+'\n')
+		elif image.split(os.path.sep)[-2] == 'female' and len(female_im) < args.n_images:
+			female_im.append(image)
+			female_file.write(image+'\n')
+		else:
+			continue
 
-	# Data Generator for Training data
-	train_generator = train_datagen.flow_from_directory(
-		args.train_dir,
-		target_size=(args.im_size, args.im_size),
-		batch_size=args.batch_size,
-		class_mode='categorical'
-	)
+	male_file.close()
+	female_file.close()
+	imagePaths = male_im + female_im
 
-	# Data Generator for Validation data
-	validation_generator = validation_datagen.flow_from_directory(
-		args.validation_dir,
-		target_size=(args.im_size, args.im_size),
-		batch_size=args.batch_size,
-		class_mode='categorical',
-		shuffle=False
-	)
+	print("[INFO] making data and labels")
 
-	return train_generator, validation_generator
+	random.seed(42)
+	random.shuffle(imagePaths)
+
+	for imagePath in imagePaths:
+		image = cv2.imread(imagePath)
+		image = cv2.resize(image, (args.im_size, args.im_size))
+		image = img_to_array(image)
+		data.append(image)
+
+		label = imagePath.split(os.path.sep)[-2]
+		label = 1 if label == "female" else 0
+		labels.append(label)
+
+	# scale the raw pixel intensities to the range [0, 1]
+	data = np.array(data, dtype="float") / 255.0
+	labels = np.array(labels)
+
+	print("[INFO] done with data and labels")
+
+	# partition the data into training and testing splits using 75% of
+	# the data for training and the remaining 25% for testing
+	(trainX, testX, trainY, testY) = train_test_split(data,
+		labels, test_size=args.split, random_state=42)
+
+	return (trainX, testX), (trainY, testY)
 
 
 if __name__ == "__main__":
-	import os
-	import argparse
-	from keras.preprocessing.image import ImageDataGenerator
-	from keras import callbacks
-
 	# setting the hyper parameters
 	parser = argparse.ArgumentParser(description="Capsule Network on MNIST.")
 	parser.add_argument('--epochs', default=50, type=int)
@@ -240,10 +268,16 @@ if __name__ == "__main__":
 						help="The path of the saved weights. Should be specified when testing")
 	parser.add_argument('-i', '--im_size', default=224,
 						help="Image size")
-	parser.add_argument('-td', '--train_dir', required=True,
-						help="Train dir")
-	parser.add_argument('-vd', '--validation_dir', required=True,
-						help="Validation dir")	
+	parser.add_argument('-d', '--dataset', required=True,
+						help="Dataset dir")
+	parser.add_argument('-n', '--n_images', required=True, type=int,
+						help="Number of images")
+	parser.add_argument('-s', '--split', required=False, type=float, default=0.2,
+						help="percent of images that should be in test")
+	# parser.add_argument('-td', '--train_dir', required=True,
+	# 					help="Train dir")
+	# parser.add_argument('-vd', '--validation_dir', required=True,
+	# 					help="Validation dir")
 	args = parser.parse_args()
 	print(args)
 
@@ -251,12 +285,12 @@ if __name__ == "__main__":
 		os.makedirs(args.save_dir)
 
 	# load data
-	(x_train, x_test) = load_data(args)
+	(x_train, y_train), (x_test, y_test) = load_data(args)
 
 	# define model
 	model, eval_model, manipulate_model = CapsNet(
-		input_shape=x_train.image_shape,
-		n_class=x_train.num_classes,
+		input_shape=x_train.shape[1:],
+		n_class=2,
 		routings=args.routings
 	)
 	
@@ -266,7 +300,7 @@ if __name__ == "__main__":
 	if args.weights is not None:  # init the model weights with provided one
 		model.load_weights(args.weights)
 	if not args.testing:
-		train(model=model, data=(x_train, x_test), args=args)
+		train(model=model, data=((x_train, y_train), (x_test, y_test)), args=args)
 	
 	# else:  # as long as weights are given, will run testing
 	# 	if args.weights is None:
