@@ -272,7 +272,7 @@ if __name__ == "__main__":
 						help="Digit to manipulate")
 	parser.add_argument('-w', '--weights', default=None,
 						help="The path of the saved weights. Should be specified when testing")
-	parser.add_argument('-i', '--im_size', default=224,
+	parser.add_argument('-i', '--im_size', default=224, type=int,
 						help="Image size")
 	parser.add_argument('-d', '--dataset', required=True,
 						help="Dataset dir")
