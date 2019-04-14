@@ -194,7 +194,9 @@ def load_data(args):
 	data = []
 	labels = []
 	
-	print("[INFO] Loading images")
+	print("[INFO] Loading %d images for Male" % (args.n_images))
+	print("[INFO] Loading %d images for Female" % (args.n_images))
+	print('[INFO] Total: %d' % (args.n_images * 2))
 
 	male_file, female_file = open('./male.txt', 'w'), open('./female.txt', 'w')
 	male_im, female_im = [], []
@@ -213,7 +215,7 @@ def load_data(args):
 	female_file.close()
 	imagePaths = male_im + female_im
 
-	print("[INFO] making data and labels")
+	print("[INFO] Making data and labels")
 
 	random.seed(42)
 	random.shuffle(imagePaths)
@@ -228,16 +230,20 @@ def load_data(args):
 		label = 1 if label == "female" else 0
 		labels.append(label)
 
-	# scale the raw pixel intensities to the range [0, 1]
 	data = np.array(data, dtype="float") / 255.0
-	labels = to_categorical(np.array(labels))
+	labels = to_categorical(np.array(labels)) # linea mucho muy importante
 
-	print("[INFO] done with data and labels")
+	print("[INFO] Done with data and labels")
 
-	# partition the data into training and testing splits using 75% of
-	# the data for training and the remaining 25% for testing
 	(trainX, testX, trainY, testY) = train_test_split(data,
 		labels, test_size=args.split, random_state=42)
+	
+	print('[INFO] Shapes')
+
+	print('[INFO] x_train: %s' % (trainX.shape, ))
+	print('[INFO] y_train: %s' % (trainY.shape, ))
+	print('[INFO] x_test: %s' % (testX.shape, ))
+	print('[INFO] y_test: %s' % (testY.shape, ))
 
 	return (trainX, trainY), (testX, testY)
 
