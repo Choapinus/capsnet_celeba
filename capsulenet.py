@@ -239,7 +239,7 @@ def load_data(args):
 	(trainX, testX, trainY, testY) = train_test_split(data,
 		labels, test_size=args.split, random_state=42)
 
-	return (trainX, testX), (trainY, testY)
+	return (trainX, trainY), (testX, testY)
 
 
 if __name__ == "__main__":

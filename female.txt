@@ -8,13 +8,3 @@
 ../CNN/male_female_cnn/images/female/000011.jpg
 ../CNN/male_female_cnn/images/female/000014.jpg
 ../CNN/male_female_cnn/images/female/000017.jpg
-../CNN/male_female_cnn/images/female/000018.jpg
-../CNN/male_female_cnn/images/female/000019.jpg
-../CNN/male_female_cnn/images/female/000022.jpg
-../CNN/male_female_cnn/images/female/000024.jpg
-../CNN/male_female_cnn/images/female/000026.jpg
-../CNN/male_female_cnn/images/female/000027.jpg
-../CNN/male_female_cnn/images/female/000028.jpg
-../CNN/male_female_cnn/images/female/000029.jpg
-../CNN/male_female_cnn/images/female/000031.jpg
-../CNN/male_female_cnn/images/female/000034.jpg
