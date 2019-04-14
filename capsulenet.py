@@ -230,7 +230,7 @@ def load_data(args):
 
 	# scale the raw pixel intensities to the range [0, 1]
 	data = np.array(data, dtype="float") / 255.0
-	labels = np.array(labels)
+	labels = to_categorical(np.array(labels))
 
 	print("[INFO] done with data and labels")
 
