@@ -234,6 +234,7 @@ def load_data(args):
 	labels = to_categorical(np.array(labels)) # linea mucho muy importante
 
 	print("[INFO] Done with data and labels")
+	print("[INFO] Spliting data")
 
 	(trainX, testX, trainY, testY) = train_test_split(data,
 		labels, test_size=args.split, random_state=42)
