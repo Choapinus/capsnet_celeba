@@ -49,10 +49,10 @@ def CapsNet(input_shape, n_class, routings):
 	x = layers.Input(shape=input_shape)
 
 	# Layer 1: Just a conventional Conv2D layer
-	conv1 = layers.Conv2D(filters=256, kernel_size=9, strides=1, padding='valid', activation='relu', name='conv1')(x)
+	conv1 = layers.Conv2D(filters=256, kernel_size=3, strides=2, padding='same', activation='relu', name='conv1')(x)
 
 	# Layer 2: Conv2D layer with `squash` activation, then reshape to [None, num_capsule, dim_capsule]
-	primarycaps = PrimaryCap(conv1, dim_capsule=8, n_channels=32, kernel_size=9, strides=2, padding='valid')
+	primarycaps = PrimaryCap(conv1, dim_capsule=8, n_channels=32, kernel_size=3, strides=2, padding='same')
 
 	# Layer 3: Capsule layer. Routing algorithm works here.
 	digitcaps = CapsuleLayer(num_capsule=n_class, dim_capsule=16, routings=routings,
@@ -119,7 +119,7 @@ def train(model, data, args):
 	lr_decay = callbacks.LearningRateScheduler(schedule=lambda epoch: args.lr * (args.lr_decay ** epoch))
 
 	# compile the model
-	model.compile(optimizer=optimizers.Adam(lr=args.lr),
+	model.compile(optimizer=optimizers.SGD(lr=args.lr),
 				  loss=[margin_loss, 'mse'],
 				  loss_weights=[1., args.lam_recon],
 				  metrics={'capsnet': 'accuracy'})
@@ -252,7 +252,7 @@ def load_data(args):
 if __name__ == "__main__":
 	# setting the hyper parameters
 	parser = argparse.ArgumentParser(description="Capsule Network on MNIST.")
-	parser.add_argument('--epochs', default=50, type=int)
+	parser.add_argument('--epochs', default=100, type=int)
 	parser.add_argument('--batch_size', default=100, type=int)
 	parser.add_argument('--lr', default=0.001, type=float,
 						help="Initial learning rate")
@@ -281,10 +281,6 @@ if __name__ == "__main__":
 						help="Number of images")
 	parser.add_argument('-s', '--split', required=False, type=float, default=0.2,
 						help="percent of images that should be in test")
-	# parser.add_argument('-td', '--train_dir', required=True,
-	# 					help="Train dir")
-	# parser.add_argument('-vd', '--validation_dir', required=True,
-	# 					help="Validation dir")
 	args = parser.parse_args()
 	print(args)
 
